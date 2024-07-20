@@ -1,7 +1,13 @@
 [package]
 name = "baba"
 version = "0.1.0"
+authors = ["rini <rini@rinici.de>"]
 edition = "2021"
+description = "Extremely simple library for games, inspired by love2d and raylib"
+repository = "https://codeberg.org/rini/baba"
+license = "Apache-2.0"
+keywords = ["gamedev", "game", "engine", "graphics"]
+categories = ["graphics", "game-engines", "rendering"]
 
 [dependencies]
 ecolor = "0.28.1"

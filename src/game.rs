@@ -78,7 +78,7 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
             }
 
             (self.update)(&mut state);
-            gfx::CANVAS.with_borrow_mut(|canvas| canvas.as_mut().unwrap().present());
+            gfx::with_canvas(|canvas| canvas.present());
 
             let now = Instant::now();
             let dt = now - std::mem::replace(&mut frame_start, now);

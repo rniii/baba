@@ -16,18 +16,22 @@ pub struct Texture {
 
 impl Texture {
     pub fn load(path: impl AsRef<Path>) -> Texture {
+        let image = Reader::open(path).unwrap().decode().unwrap();
+
+        Self::from_image(image)
+    }
+
+    pub fn from_image(img: image::DynamicImage) -> Self {
         CANVAS.with_borrow(|canvas| {
             let canvas = canvas.as_ref().expect("no active renderer");
-
-            let img = Reader::open(path).unwrap().decode().unwrap();
             let width = img.width();
             let height = img.height();
-            let pitch = width * img.color().bytes_per_pixel() as u32;
             let (format, mut data) = if img.color().has_alpha() {
                 (PixelFormatEnum::RGBA8888, img.into_rgba8().into_raw())
             } else {
                 (PixelFormatEnum::RGB888, img.into_rgb8().into_raw())
             };
+            let pitch = width * format.byte_size_per_pixel() as u32;
             let surface = Surface::from_data(&mut data, width, height, pitch, format).unwrap();
             let inner = canvas.create_texture_from_surface(surface).unwrap();
 

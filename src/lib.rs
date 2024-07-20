@@ -28,7 +28,8 @@ pub mod prelude {
     pub use gfx::{Color, Texture, Transform, Vertex};
 
     pub use glam::{
-        Affine2, DVec2, DVec3, DVec4, IVec2, IVec3, IVec4, Mat2, Mat3, Mat4, UVec2, UVec3, UVec4,
-        Vec2, Vec3, Vec4,
+        self, Affine2, DVec2, DVec3, DVec4, IVec2, IVec3, IVec4, Mat2, Mat3, Mat4, UVec2, UVec3,
+        UVec4, Vec2, Vec3, Vec4,
     };
+    pub use image;
 }

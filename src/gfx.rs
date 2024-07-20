@@ -13,6 +13,10 @@ thread_local! {
     pub(crate) static CANVAS: RefCell<Option<Canvas>> = const { RefCell::new(None) };
 }
 
+pub(crate) fn with_canvas<T>(f: impl FnOnce(&mut Canvas) -> T) -> T {
+    CANVAS.with_borrow_mut(|canvas| f(canvas.as_mut().expect("no active renderer")))
+}
+
 #[repr(C)]
 pub struct Vertex {
     pub coord: Vec2,
@@ -28,19 +32,14 @@ impl Vertex {
 }
 
 pub fn clear(color: Color) {
-    CANVAS.with_borrow_mut(|canvas| {
-        let canvas = canvas.as_mut().expect("no active renderer");
+    with_canvas(|canvas| {
         canvas.set_draw_color(color.to_tuple());
         canvas.clear();
     })
 }
 
 pub fn draw<T: Drawable>(object: T, transform: impl Into<Transform>) {
-    CANVAS.with_borrow_mut(|canvas| {
-        let canvas = canvas.as_mut().expect("no active renderer");
-        let transform = transform.into();
-        object.draw(canvas, transform);
-    })
+    with_canvas(|canvas| object.draw(canvas, transform.into()))
 }
 
 pub fn draw_vertices(
