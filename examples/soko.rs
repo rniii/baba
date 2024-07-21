@@ -1,7 +1,9 @@
 use baba::prelude::*;
 
 fn main() -> baba::Result {
-    baba::game("SOKOBAN", Soko::update).run_with(Soko::new)
+    baba::game("SOKOBAN", Soko::update)
+        .window_size(800, 600)
+        .run_with(Soko::new)
 }
 
 const MAP: &str = "\
@@ -137,16 +139,12 @@ impl Soko {
     fn draw(&self) {
         gfx::clear(Color::from_rgb(0x2f, 0x28, 0x43));
 
-        gfx::draw(
-            &self.player.texture,
-            (self.player.position * 32.0, (4., 4.)),
-        );
-
         for entity in self
             .targets
             .iter()
             .chain(self.objects.iter())
             .chain(self.walls.iter())
+            .chain(std::iter::once(&self.player))
         {
             gfx::draw(&entity.texture, (entity.position * 32.0, (4., 4.)))
         }

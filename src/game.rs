@@ -51,6 +51,10 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
     }
 
     pub fn run_with(mut self, init: impl FnOnce() -> State) -> Result {
+        env_logger::Builder::from_env(env_logger::Env::new().default_filter_or("info"))
+            .format_timestamp_millis()
+            .init();
+
         self.running = true;
 
         let sdl = sdl2::init().map_err(SdlError)?;
@@ -69,9 +73,20 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
         builder.hidden();
 
         let mut window = builder.build().unwrap();
+
+        let mode = window.display_mode().unwrap();
+        log::info!(
+            "Created window {}x{} @{}fps",
+            mode.w,
+            mode.h,
+            mode.refresh_rate
+        );
+
         let mut pump = sdl.event_pump().map_err(SdlError)?;
 
         let canvas = window.clone().into_canvas().accelerated().build().unwrap();
+        log::info!("Using {} renderer", canvas.info().name);
+
         gfx::CANVAS.replace(Some(canvas));
 
         let frame_limit = Duration::from_secs_f64(1.0 / 60.0);

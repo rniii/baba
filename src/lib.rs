@@ -36,4 +36,5 @@ pub mod prelude {
 
     pub use glam;
     pub use image;
+    pub use log::{debug, info, log, trace, warn, Level as LogLevel};
 }

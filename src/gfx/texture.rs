@@ -55,10 +55,24 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn load(path: impl AsRef<Path>) -> Texture {
-        let image = Reader::open(path).unwrap().decode().unwrap();
+    pub fn empty() -> Self {
+        Self {
+            data: Rc::new(TextureData {
+                ptr: std::ptr::null_mut(),
+                w: 0,
+                h: 0,
+            }),
+        }
+    }
 
-        Self::from_image(image)
+    pub fn load(path: impl AsRef<Path>) -> Self {
+        match Reader::open(path.as_ref()) {
+            Ok(r) => Self::from_image(r.decode().unwrap()),
+            Err(e) => {
+                log::error!("Failed to load {}: {e}", path.as_ref().display());
+                Self::empty()
+            }
+        }
     }
 
     pub fn from_image(img: image::DynamicImage) -> Self {
