@@ -13,10 +13,12 @@ struct InputState {
     just_pressed: HashSet<KeyCode>,
 }
 
+#[must_use]
 pub fn is_key_pressed(key: KeyCode) -> bool {
     INPUT_STATE.with_borrow(|input| input.just_pressed.contains(&key))
 }
 
+#[must_use]
 pub fn is_key_down(key: KeyCode) -> bool {
     INPUT_STATE.with_borrow(|input| input.pressed.contains(&key))
 }

@@ -1,12 +1,14 @@
 use std::ops::Mul;
 
-use glam::{Affine2, Mat2, Mat3, Vec2};
+use crate::math::{Affine2, Degrees, Mat2, Mat3, Vec2};
 
 #[must_use]
+#[derive(Debug, Default)]
 pub struct Transform(Affine2);
 
+/// Two-dimensional coordinate transformation.
 impl Transform {
-    pub const IDENTITY: Transform = Transform::from_affine(Affine2::IDENTITY);
+    pub const IDENTITY: Self = Self::from_affine(Affine2::IDENTITY);
 
     /// Create a transform from an affine transformation matrix.
     #[inline(always)]
@@ -44,15 +46,21 @@ impl Transform {
         self * Self::from_scale(scale)
     }
 
-    // Rotate this transform  by `angle` (in radians).
+    /// Rotate this transform by `angle` (in radians).
     #[inline(always)]
     pub fn rotate(self, angle: f32) -> Self {
         self * Self::from_rotation(angle)
     }
 
+    #[must_use]
+    pub const fn to_affine(self) -> Affine2 {
+        self.0
+    }
+
     /// Transform a 2D point with this object.
     ///
     /// This may translate, scale and rotate.
+    #[must_use]
     #[inline(always)]
     pub fn transform_point(&self, point: Vec2) -> Vec2 {
         self.0.transform_point2(point)
@@ -60,7 +68,7 @@ impl Transform {
 }
 
 impl Mul for Transform {
-    type Output = Transform;
+    type Output = Self;
 
     #[inline(always)]
     fn mul(self, rhs: Self) -> Self::Output {
@@ -82,6 +90,20 @@ impl From<Mat2> for Transform {
     }
 }
 
+macro_rules! impl_translation_scale_rotation {
+    ($T:ty, $U:ty, $V:ty) => {
+        impl From<($T, $U, $V)> for Transform {
+            /// Create a transform with translation, scale and rotation.
+            #[inline(always)]
+            fn from((translation, scale, angle): ($T, $U, $V)) -> Self {
+                Self::from_translation(translation.into())
+                    .scale(scale.into())
+                    .rotate(angle.into())
+            }
+        }
+    };
+}
+
 macro_rules! impl_translation_scale {
     ($T:ty, $U:ty) => {
         impl From<($T, $U)> for Transform {
@@ -92,15 +114,8 @@ macro_rules! impl_translation_scale {
             }
         }
 
-        impl From<($T, $U, f32)> for Transform {
-            /// Create a transform with translation, scale and angle (in radians).
-            #[inline(always)]
-            fn from((translation, scale, angle): ($T, $U, f32)) -> Self {
-                Self::from_translation(translation.into())
-                    .scale(scale.into())
-                    .rotate(angle)
-            }
-        }
+        impl_translation_scale_rotation!($T, $U, f32);
+        impl_translation_scale_rotation!($T, $U, Degrees);
     };
 }
 
