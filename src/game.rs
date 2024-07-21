@@ -120,7 +120,6 @@ pub struct Settings {
     pub title: String,
     pub width: u32,
     pub height: u32,
-    pub vsync: bool,
 }
 
 impl Default for Settings {
@@ -129,7 +128,6 @@ impl Default for Settings {
             title: String::new(),
             width: 800,
             height: 600,
-            vsync: false,
         }
     }
 }

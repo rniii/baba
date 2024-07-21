@@ -52,7 +52,7 @@ pub(crate) fn draw_vertices(
     vertices: &[Vertex],
     indices: Option<&[i32]>,
 ) {
-    let result = unsafe {
+    unsafe {
         sdl2_sys::SDL_RenderGeometry(
             canvas.raw(),
             texture.raw(),
@@ -63,9 +63,6 @@ pub(crate) fn draw_vertices(
             indices.map_or(0, |i| i.len()) as i32,
         )
     };
-    if result != 0 {
-        panic!("{}", sdl2::get_error());
-    }
 }
 
 pub trait Drawable: private::Sealed {
