@@ -11,7 +11,6 @@ categories = ["graphics", "game-engines", "rendering"]
 
 [dependencies]
 ecolor = "0.28.1"
-evenio = "0.6.0"
 glam = "0.28.0"
 image = "0.25.1"
 sdl2 = { version = "0.37.0", features = ["unsafe_textures", "image"] }

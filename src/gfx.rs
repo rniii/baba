@@ -6,14 +6,14 @@ pub use sdl2::render::WindowCanvas as Canvas;
 
 mod texture;
 mod transform;
-pub use texture::Texture;
+pub use texture::{Texture, TextureSlice};
 pub use transform::Transform;
 
 thread_local! {
     pub(crate) static CANVAS: RefCell<Option<Canvas>> = const { RefCell::new(None) };
 }
 
-pub(crate) fn with_canvas<T>(f: impl FnOnce(&mut Canvas) -> T) -> T {
+fn with_canvas<T>(f: impl FnOnce(&mut Canvas) -> T) -> T {
     CANVAS.with_borrow_mut(|canvas| f(canvas.as_mut().expect("no active renderer")))
 }
 
@@ -38,13 +38,17 @@ pub fn clear(color: Color) {
     })
 }
 
+pub fn display() {
+    with_canvas(|canvas| canvas.present())
+}
+
 pub fn draw<T: Drawable>(object: T, transform: impl Into<Transform>) {
     with_canvas(|canvas| object.draw(canvas, transform.into()))
 }
 
-pub fn draw_vertices(
+pub(crate) fn draw_vertices(
     canvas: &mut Canvas,
-    texture: &Texture,
+    texture: &texture::TextureData,
     vertices: &[Vertex],
     indices: Option<&[i32]>,
 ) {
@@ -75,4 +79,5 @@ mod private {
     pub trait Sealed {}
 
     impl Sealed for &Texture {}
+    impl Sealed for &TextureSlice {}
 }

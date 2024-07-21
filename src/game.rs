@@ -1,16 +1,21 @@
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
-use crate::{gfx, Result, SdlError};
+use sdl2::event::Event;
+use sdl2::EventPump;
+
+use crate::{gfx, input, Result, SdlError};
 
 pub fn game<State>(
-    title: impl AsRef<str>,
+    name: impl Into<String>,
     update: impl Fn(&mut State),
 ) -> Game<State, impl Fn(&mut State)> {
+    let name = name.into();
     Game {
+        name: name.clone(),
         update,
         settings: Settings {
-            title: title.as_ref().to_owned(),
+            title: name,
             ..Default::default()
         },
         running: false,
@@ -19,6 +24,7 @@ pub fn game<State>(
 }
 
 pub struct Game<State, Update: Fn(&mut State)> {
+    name: String,
     update: Update,
     settings: Settings,
     running: bool,
@@ -48,6 +54,10 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
         self.running = true;
 
         let sdl = sdl2::init().map_err(SdlError)?;
+        sdl2::hint::set("SDL_APP_NAME", &self.name);
+        // sdl2::hint::set("SDL_IME_SUPPORT_EXTENDED_TEXT", "1");
+        sdl2::hint::set("SDL_VIDEO_DOUBLE_BUFFER", "1");
+
         let video = sdl.video().map_err(SdlError)?;
 
         let mut builder = video.window(
@@ -71,14 +81,12 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
         window.show();
 
         while self.running {
-            for event in pump.poll_iter() {
-                if let sdl2::event::Event::Quit { .. } = event {
-                    self.running = false;
-                }
-            }
+            self.process_events(&mut pump);
 
             (self.update)(&mut state);
-            gfx::with_canvas(|canvas| canvas.present());
+
+            gfx::display();
+            input::clear();
 
             let now = Instant::now();
             let dt = now - std::mem::replace(&mut frame_start, now);
@@ -88,6 +96,23 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
         }
 
         Ok(())
+    }
+
+    fn process_events(&mut self, pump: &mut EventPump) {
+        while let Some(event) = pump.poll_event() {
+            match event {
+                Event::Quit { .. } => self.running = false,
+                Event::KeyDown {
+                    scancode, repeat, ..
+                } if !repeat => {
+                    input::press_key(scancode.unwrap());
+                }
+                Event::KeyUp { scancode, .. } => {
+                    input::release_key(scancode.unwrap());
+                }
+                _ => {}
+            }
+        }
     }
 }
 
