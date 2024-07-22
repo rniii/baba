@@ -1,11 +1,12 @@
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
+use bytemuck::Contiguous;
 use sdl2::event::Event;
 use sdl2::video::Window;
 use sdl2::EventPump;
 
-use crate::{gfx, input, Result, ScaleMode, SdlError};
+use crate::{gfx, input, KeyCode, Result, ScaleMode, SdlError};
 
 pub fn game<State>(
     name: impl Into<String>,
@@ -72,7 +73,6 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
 
         let sdl = self.init_sdl()?;
         let mut window = self.init_window(&sdl)?;
-        let mut pump = sdl.event_pump().map_err(SdlError)?;
 
         self.running = true;
         self.init_canvas(&window)?;
@@ -84,7 +84,7 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
         window.show();
 
         while self.running {
-            self.process_events(&mut pump);
+            self.process_events();
 
             (self.update)(&mut state);
 
@@ -118,7 +118,7 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
         Ok(sdl)
     }
 
-    fn init_window(&self, sdl: &sdl2::Sdl) -> Result<sdl2::video::Window> {
+    fn init_window(&self, sdl: &sdl2::Sdl) -> Result<Window> {
         let settings = &self.settings.window;
         let video = sdl.video().map_err(SdlError)?;
 
@@ -151,19 +151,26 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
         Ok(())
     }
 
-    fn process_events(&mut self, pump: &mut EventPump) {
-        while let Some(event) = pump.poll_event() {
-            match event {
-                Event::Quit { .. } => self.running = false,
-                Event::KeyDown {
-                    scancode, repeat, ..
-                } if !repeat => {
-                    input::press_key(scancode.unwrap());
+    fn process_events(&mut self) {
+        unsafe {
+            loop {
+                let mut event = std::mem::MaybeUninit::uninit();
+                if sdl2_sys::SDL_PollEvent(event.as_mut_ptr()) == 0 {
+                    break;
                 }
-                Event::KeyUp { scancode, .. } => {
-                    input::release_key(scancode.unwrap());
+                let event = event.assume_init();
+                match std::mem::transmute::<u32, sdl2_sys::SDL_EventType>(event.type_) {
+                    sdl2_sys::SDL_EventType::SDL_QUIT => self.running = false,
+                    sdl2_sys::SDL_EventType::SDL_KEYDOWN if event.key.repeat == 1 => {
+                        let key = bytemuck::checked::cast(event.key.keysym.scancode as u32);
+                        input::press_key(key);
+                    }
+                    sdl2_sys::SDL_EventType::SDL_KEYUP => {
+                        let key = bytemuck::checked::cast(event.key.keysym.scancode as u32);
+                        input::release_key(key);
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
         }
     }
@@ -195,7 +202,6 @@ pub struct WindowSettings {
     pub size: (u32, u32),
     /// Allow window to be resized. Defaults to true.
     pub resizable: bool,
-    // pub position
 }
 
 impl Default for WindowSettings {

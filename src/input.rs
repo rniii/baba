@@ -1,11 +1,12 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
 
-pub use sdl2::keyboard::Scancode as KeyCode;
 
 thread_local! {
     static INPUT_STATE: RefCell<InputState> = RefCell::default();
 }
+mod keycode;
+pub use keycode::KeyCode;
 
 #[derive(Default)]
 struct InputState {

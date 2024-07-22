@@ -2,7 +2,7 @@
     clippy::pedantic,
     clippy::missing_const_for_fn,
     clippy::use_self,
-    unsafe_op_in_unsafe_fn,
+    unsafe_op_in_unsafe_fn
 )]
 #![allow(
     clippy::cast_possible_wrap,
@@ -15,7 +15,8 @@
     clippy::needless_pass_by_value,
     clippy::semicolon_if_nothing_returned,
     clippy::wildcard_imports,
-    clippy::missing_errors_doc
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc
 )]
 
 use thiserror::Error;
