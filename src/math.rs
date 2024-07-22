@@ -16,16 +16,7 @@ impl Rect {
     }
 }
 
-pub struct Degrees(pub f32);
-
-impl From<f32> for Degrees {
-    fn from(value: f32) -> Self {
-        Self(value.to_degrees())
-    }
-}
-
-impl From<Degrees> for f32 {
-    fn from(value: Degrees) -> Self {
-        value.0.to_radians()
-    }
+#[must_use]
+pub fn degrees(rad: f32) -> f32 {
+    rad.to_radians()
 }

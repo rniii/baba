@@ -48,8 +48,8 @@ pub mod prelude {
     };
     pub use crate::input::{self, is_key_down, is_key_pressed, KeyCode};
     pub use crate::math::{
-        dvec2, dvec3, dvec4, ivec2, ivec3, ivec4, mat2, mat3, mat4, uvec2, uvec3, uvec4, vec2,
-        vec3, vec4, Affine2, DVec2, DVec3, DVec4, Degrees, EulerRot, FloatExt, IVec2, IVec3, IVec4,
+        degrees, dvec2, dvec3, dvec4, ivec2, ivec3, ivec4, mat2, mat3, mat4, uvec2, uvec3, uvec4,
+        vec2, vec3, vec4, Affine2, DVec2, DVec3, DVec4, EulerRot, FloatExt, IVec2, IVec3, IVec4,
         Mat2, Mat3, Mat4, Rect, UVec2, UVec3, UVec4, Vec2, Vec3, Vec4,
     };
     pub use std::f32::consts::*;

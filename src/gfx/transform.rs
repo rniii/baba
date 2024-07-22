@@ -1,6 +1,6 @@
 use std::ops::Mul;
 
-use crate::math::{Affine2, Degrees, Mat2, Mat3, Vec2};
+use crate::math::{Affine2, Mat2, Mat3, Vec2};
 
 #[must_use]
 #[derive(Debug, Default)]
@@ -115,7 +115,6 @@ macro_rules! impl_translation_scale {
         }
 
         impl_translation_scale_rotation!($T, $U, f32);
-        impl_translation_scale_rotation!($T, $U, Degrees);
     };
 }
 
