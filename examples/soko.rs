@@ -146,7 +146,7 @@ impl Soko {
             .chain(self.walls.iter())
             .chain(std::iter::once(&self.player))
         {
-            gfx::draw(&entity.texture, (entity.position * 32.0, (4., 4.)))
+            gfx::draw(&entity.texture, (entity.position * 32.0, (4., 4.)));
         }
     }
 

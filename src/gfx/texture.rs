@@ -9,7 +9,7 @@ use thiserror::Error;
 
 use crate::math::Rect;
 
-use super::{draw_vertices, with_canvas, Canvas, Drawable, Transform, Vertex, CANVAS};
+use super::{draw_vertices, with_canvas, Canvas, Drawable, Transform, Vertex};
 
 #[derive(Debug, Error)]
 pub enum LoadError {
@@ -36,7 +36,9 @@ pub enum ScaleMode {
     #[default]
     Nearest = sdl2_sys::SDL_ScaleMode::SDL_ScaleModeNearest as u32,
     Linear = sdl2_sys::SDL_ScaleMode::SDL_ScaleModeLinear as u32,
-    Anisotropic = sdl2_sys::SDL_ScaleMode::SDL_ScaleModeBest as u32,
+    // SDL2 docs both say "equivalent to linear" and "anisotropic". Checking the source code, no
+    // backend uses SDL_SCALEMODE_BEST.
+    // Anisotropic = sdl2_sys::SDL_ScaleMode::SDL_ScaleModeBest as u32,
 }
 
 #[derive(Default)]
@@ -89,14 +91,12 @@ impl TextureData {
         };
         let pitch = w * format.byte_size_per_pixel() as u32;
 
-        with_canvas(|canvas| {
+        with_canvas(|canvas| unsafe {
             let surface = Surface::from_data(&mut data, w, h, pitch, format).unwrap();
             let ptr = canvas.create_texture_from_surface(surface).unwrap().raw();
             if let Some(scale) = opts.scaling {
-                unsafe {
-                    let scale = std::mem::transmute::<ScaleMode, sdl2_sys::SDL_ScaleMode>(scale);
-                    sdl2_sys::SDL_SetTextureScaleMode(ptr, scale);
-                }
+                let scale = std::mem::transmute::<ScaleMode, sdl2_sys::SDL_ScaleMode>(scale);
+                sdl2_sys::SDL_SetTextureScaleMode(ptr, scale);
             }
 
             Self { ptr, w, h }
@@ -110,11 +110,7 @@ impl TextureData {
 
 impl Drop for TextureData {
     fn drop(&mut self) {
-        let _ = CANVAS.try_with(|canvas| {
-            if canvas.borrow().is_some() {
-                unsafe { sdl2_sys::SDL_DestroyTexture(self.ptr) }
-            }
-        });
+        unsafe { sdl2_sys::SDL_DestroyTexture(self.ptr) }
     }
 }
 
@@ -155,7 +151,7 @@ impl Texture {
     pub fn from_image(img: image::DynamicImage, options: impl Into<Options>) -> Self {
         let options = options.into();
         let origin = options.origin.0;
-        let data = TextureData::from_image(img, options).into();
+        let data = Rc::new(TextureData::from_image(img, options));
         Self { data, origin }
     }
 

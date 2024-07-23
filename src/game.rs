@@ -1,12 +1,9 @@
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
-use bytemuck::Contiguous;
-use sdl2::event::Event;
-use sdl2::video::Window;
-use sdl2::EventPump;
+use sdl2::video::{DisplayMode, Window};
 
-use crate::{gfx, input, KeyCode, Result, ScaleMode, SdlError};
+use crate::{gfx, input, Result, ScaleMode, SdlError};
 
 pub fn game<State>(
     name: impl Into<String>,
@@ -72,12 +69,20 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
             .init();
 
         let sdl = self.init_sdl()?;
-        let mut window = self.init_window(&sdl)?;
+        let (mut window, mode) = self.init_window(&sdl)?;
 
         self.running = true;
         self.init_canvas(&window)?;
 
-        let frame_limit = Duration::from_secs_f64(1.0 / 60.0);
+        let frame_limit = match self.settings.framerate {
+            Framerate::Multiplier(mul) => {
+                let base = mode.refresh_rate as f32;
+                let base = if base > 0. { base } else { 60. };
+                Duration::from_secs_f32(1. / (mul * base))
+            }
+            Framerate::Exact(fps) => Duration::from_secs_f32(1. / fps as f32),
+            Framerate::Unlimited => Duration::ZERO,
+        };
         let mut frame_start = Instant::now();
         let mut state = init();
 
@@ -111,14 +116,13 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
             match self.settings.scale_mode {
                 ScaleMode::Nearest => "0",
                 ScaleMode::Linear => "1",
-                ScaleMode::Anisotropic => "2",
             },
         );
 
         Ok(sdl)
     }
 
-    fn init_window(&self, sdl: &sdl2::Sdl) -> Result<Window> {
+    fn init_window(&self, sdl: &sdl2::Sdl) -> Result<(Window, DisplayMode)> {
         let settings = &self.settings.window;
         let video = sdl.video().map_err(SdlError)?;
 
@@ -139,11 +143,17 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
         let m = window.display_mode().unwrap();
         log::info!("Created window {}x{} @{}fps", m.w, m.h, m.refresh_rate);
 
-        Ok(window)
+        Ok((window, m))
     }
 
     fn init_canvas(&self, window: &Window) -> Result<()> {
-        let canvas = window.clone().into_canvas().accelerated().build().unwrap();
+        let canvas = window.clone().into_canvas().accelerated();
+        let canvas = if self.settings.vsync {
+            canvas.present_vsync()
+        } else {
+            canvas
+        };
+        let canvas = canvas.build().unwrap();
         log::info!("Using {} renderer", canvas.info().name);
 
         gfx::CANVAS.set(Some(canvas));
@@ -161,7 +171,7 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
                 let event = event.assume_init();
                 match std::mem::transmute::<u32, sdl2_sys::SDL_EventType>(event.type_) {
                     sdl2_sys::SDL_EventType::SDL_QUIT => self.running = false,
-                    sdl2_sys::SDL_EventType::SDL_KEYDOWN if event.key.repeat == 1 => {
+                    sdl2_sys::SDL_EventType::SDL_KEYDOWN if event.key.repeat == 0 => {
                         let key = bytemuck::checked::cast(event.key.keysym.scancode as u32);
                         input::press_key(key);
                     }
@@ -181,6 +191,11 @@ pub struct Settings {
     /// Texture scaling mode, may be overriden with [`TextureOptions`][crate::TextureOptions].
     /// Defaults to [`ScaleMode::Nearest`].
     pub scale_mode: ScaleMode,
+    /// Framerate limit for `update` calls. Default 1x the display's refresh rate.
+    pub framerate: Framerate,
+    /// Enable vertical sync (default off). Reduces tearing at the cost of some latency. You likely
+    /// also want to set [framerate][Settings::framerate] if you use this.
+    pub vsync: bool,
     /// Window creation settings.
     pub window: WindowSettings,
 }
@@ -189,9 +204,21 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             scale_mode: ScaleMode::Nearest,
+            framerate: Framerate::Multiplier(1.),
+            vsync: false,
             window: WindowSettings::default(),
         }
     }
+}
+
+/// Framerate limit.
+pub enum Framerate {
+    /// Sets framerate to a multiple of the current display's refresh rate.
+    Multiplier(f32),
+    /// Sets framerate to an exact value.
+    Exact(u32),
+    /// No limits. Use this when you are going to implement your own limiting.
+    Unlimited,
 }
 
 /// Window settings.

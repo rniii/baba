@@ -8,9 +8,7 @@
     clippy::cast_possible_wrap,
     clippy::cast_possible_truncation,
     clippy::cast_precision_loss,
-    clippy::inline_always,
     clippy::module_name_repetitions,
-    clippy::unused_self,
     clippy::unnecessary_wraps,
     clippy::needless_pass_by_value,
     clippy::semicolon_if_nothing_returned,
@@ -25,7 +23,7 @@ mod game;
 pub mod gfx;
 pub mod input;
 pub mod math;
-pub use game::{game, run, Game, Settings, WindowSettings};
+pub use game::{game, run, Game};
 #[doc(inline)]
 pub use prelude::*;
 
@@ -44,6 +42,7 @@ pub enum Error {
 pub type Result<T = (), E = Error> = std::result::Result<T, E>;
 
 pub mod prelude {
+    pub use crate::game::{Framerate, Settings, WindowSettings};
     pub use crate::gfx::{
         self, Color, Origin, ScaleMode, Texture, TextureOptions, TextureSlice, Transform, Vertex,
     };

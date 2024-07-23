@@ -25,6 +25,14 @@ pub fn is_key_down(key: KeyCode) -> bool {
     INPUT_STATE.lock().pressed.contains(&key)
 }
 
+pub fn get_pressed_keys() -> impl ExactSizeIterator<Item = KeyCode> {
+    INPUT_STATE.lock().just_pressed.clone().into_iter()
+}
+
+pub fn get_held_keys() -> impl ExactSizeIterator<Item = KeyCode> {
+    INPUT_STATE.lock().pressed.clone().into_iter()
+}
+
 pub fn press_key(key: KeyCode) {
     let mut input = INPUT_STATE.lock();
     input.pressed.insert(key);
