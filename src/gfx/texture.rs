@@ -4,12 +4,12 @@ use std::rc::Rc;
 use glam::{vec2, Vec2};
 use image::io::Reader;
 use sdl2::pixels::PixelFormatEnum;
-use sdl2::surface::Surface;
 use thiserror::Error;
 
 use crate::math::Rect;
+use crate::SdlError;
 
-use super::{draw_vertices, with_canvas, Canvas, Drawable, Transform, Vertex};
+use super::{with_canvas, Canvas, Drawable, Transform, Vertex};
 
 #[derive(Debug, Error)]
 pub enum LoadError {
@@ -17,6 +17,8 @@ pub enum LoadError {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Decode(#[from] image::ImageError),
+    #[error(transparent)]
+    Sdl(#[from] SdlError),
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -34,11 +36,10 @@ impl Origin {
 #[repr(u32)]
 pub enum ScaleMode {
     #[default]
-    Nearest = sdl2_sys::SDL_ScaleMode::SDL_ScaleModeNearest as u32,
-    Linear = sdl2_sys::SDL_ScaleMode::SDL_ScaleModeLinear as u32,
-    // SDL2 docs both say "equivalent to linear" and "anisotropic". Checking the source code, no
-    // backend uses SDL_SCALEMODE_BEST.
-    // Anisotropic = sdl2_sys::SDL_ScaleMode::SDL_ScaleModeBest as u32,
+    Nearest = 0,
+    Linear = 1,
+    // No SDL2 backend uses this, seemingly
+    // Anisotropic = 2,
 }
 
 #[derive(Default)]
@@ -81,7 +82,7 @@ impl TextureData {
         }
     }
 
-    fn from_image(img: image::DynamicImage, opts: Options) -> Self {
+    fn from_image(img: image::DynamicImage, opts: Options) -> Result<Self, LoadError> {
         let w = img.width();
         let h = img.height();
         let (format, mut data) = if img.color().has_alpha() {
@@ -92,14 +93,29 @@ impl TextureData {
         let pitch = w * format.byte_size_per_pixel() as u32;
 
         with_canvas(|canvas| unsafe {
-            let surface = Surface::from_data(&mut data, w, h, pitch, format).unwrap();
-            let ptr = canvas.create_texture_from_surface(surface).unwrap().raw();
+            let surface = sdl2_sys::SDL_CreateRGBSurfaceWithFormatFrom(
+                data.as_mut_ptr().cast(),
+                w as i32,
+                h as i32,
+                /* unused */ 0,
+                pitch as i32,
+                format as u32,
+            );
+            if surface.is_null() {
+                return Err(SdlError::from_sdl())?;
+            }
+
+            let ptr = sdl2_sys::SDL_CreateTextureFromSurface(canvas.renderer(), surface);
+            if ptr.is_null() {
+                log::warn!("Failed to create a texture: {}", SdlError::from_sdl());
+            }
+
             if let Some(scale) = opts.scaling {
                 let scale = std::mem::transmute::<ScaleMode, sdl2_sys::SDL_ScaleMode>(scale);
                 sdl2_sys::SDL_SetTextureScaleMode(ptr, scale);
             }
 
-            Self { ptr, w, h }
+            Ok(Self { ptr, w, h })
         })
     }
 
@@ -142,23 +158,22 @@ impl Texture {
         path: impl AsRef<Path>,
         options: impl Into<Options>,
     ) -> Result<Self, LoadError> {
-        Ok(Self::from_image(
-            Reader::open(path.as_ref())?.decode()?,
-            options.into(),
-        ))
+        Self::from_image(Reader::open(path.as_ref())?.decode()?, options.into())
     }
 
-    pub fn from_image(img: image::DynamicImage, options: impl Into<Options>) -> Self {
+    pub fn from_image(
+        img: image::DynamicImage,
+        options: impl Into<Options>,
+    ) -> Result<Self, LoadError> {
         let options = options.into();
         let origin = options.origin.0;
-        let data = Rc::new(TextureData::from_image(img, options));
-        Self { data, origin }
+        let data = Rc::new(TextureData::from_image(img, options)?);
+        Ok(Self { data, origin })
     }
 
     pub fn slice(&self, rect: Rect) -> TextureSlice {
-        let data = self.data.clone();
-        let origin = self.origin;
-        TextureSlice { data, origin, rect }
+        let texture = self.clone();
+        TextureSlice { texture, rect }
     }
 
     pub const fn with_origin(mut self, origin: Origin) -> Self {
@@ -175,13 +190,16 @@ impl Texture {
     pub fn height(&self) -> u32 {
         self.data.h
     }
+
+    pub(crate) fn raw(&self) -> *mut sdl2_sys::SDL_Texture {
+        self.data.raw()
+    }
 }
 
 #[must_use]
 #[derive(Clone)]
 pub struct TextureSlice {
-    data: Rc<TextureData>,
-    origin: Vec2,
+    texture: Texture,
     rect: Rect,
 }
 
@@ -195,27 +213,29 @@ impl Drawable for Texture {
         let verts =
             QUAD_VERTS.map(|p| Vertex::from_xy_uv(transform.transform_point(p - self.origin), p));
 
-        draw_vertices(canvas, &self.data, &verts, Some(&QUAD_IDX));
+        canvas.draw_geometry(self, &verts, Some(&QUAD_IDX));
     }
 }
 
 impl Drawable for TextureSlice {
     fn draw(&self, canvas: &mut Canvas, transform: Transform) {
+        let data = &self.texture.data;
+        let origin = self.texture.origin;
+
         let size = vec2(self.rect.w as f32, self.rect.h as f32);
         let uv = vec2(
-            self.rect.x as f32 / self.data.w as f32,
-            self.rect.y as f32 / self.data.h as f32,
+            self.rect.x as f32 / data.w as f32,
+            self.rect.y as f32 / data.h as f32,
         );
         let uv_size = vec2(
-            self.rect.w as f32 / self.data.w as f32,
-            self.rect.h as f32 / self.data.h as f32,
+            self.rect.w as f32 / data.w as f32,
+            self.rect.h as f32 / data.h as f32,
         );
         let transform = transform.scale(size);
 
-        let verts = QUAD_VERTS.map(|p| {
-            Vertex::from_xy_uv(transform.transform_point(p - self.origin), p * uv_size + uv)
-        });
+        let verts = QUAD_VERTS
+            .map(|p| Vertex::from_xy_uv(transform.transform_point(p - origin), p * uv_size + uv));
 
-        draw_vertices(canvas, &self.data, &verts, Some(&QUAD_IDX));
+        canvas.draw_geometry(&self.texture, &verts, Some(&QUAD_IDX));
     }
 }

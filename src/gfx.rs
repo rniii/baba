@@ -4,10 +4,11 @@ use std::cell::RefCell;
 
 pub use ecolor::Color32 as Color;
 use glam::Vec2;
-pub use sdl2::render::WindowCanvas as Canvas;
 
+mod canvas;
 mod texture;
 mod transform;
+pub use canvas::{Canvas, DisplayMode, CanvasError};
 pub use texture::{
     LoadError as TextureLoadError, Options as TextureOptions, Origin, ScaleMode, Texture,
     TextureSlice,
@@ -18,7 +19,7 @@ thread_local! {
     pub(crate) static CANVAS: RefCell<Option<Canvas>> = const { RefCell::new(None) };
 }
 
-fn with_canvas<T>(f: impl FnOnce(&mut Canvas) -> T) -> T {
+pub fn with_canvas<T>(f: impl FnOnce(&mut Canvas) -> T) -> T {
     CANVAS.with_borrow_mut(|canvas| f(canvas.as_mut().expect("no active renderer")))
 }
 
@@ -38,17 +39,17 @@ impl Vertex {
 }
 
 pub fn clear(color: Color) {
-    with_canvas(|canvas| {
-        canvas.set_draw_color(color.to_tuple());
-        canvas.clear();
-    })
+    with_canvas(|canvas| canvas.clear(color))
 }
 
+/// Display the current frame.
+///
+/// This is usually already called for you.
 pub fn display() {
-    with_canvas(sdl2::render::Canvas::present)
+    with_canvas(Canvas::display)
 }
 
-/// Draw some [`Drawable`] object onto the screen
+/// Draw some [`Drawable`] object onto the screen.
 ///
 /// This is the main drawing function. It can draw [textures][Texture] and [slices][TextureSlice],
 /// positioned according to the [transform][Transform].
@@ -67,35 +68,6 @@ pub fn draw<T: Drawable>(object: &T, transform: impl Into<Transform>) {
     with_canvas(|canvas| object.draw(canvas, transform.into()))
 }
 
-fn draw_vertices(
-    canvas: &mut Canvas,
-    texture: &texture::TextureData,
-    vertices: &[Vertex],
-    indices: Option<&[i32]>,
-) {
-    unsafe {
-        sdl2_sys::SDL_RenderGeometry(
-            canvas.raw(),
-            texture.raw(),
-            // Vertex and SDL_Vertex have the same layout, as Vec2 is also repr(C)
-            vertices.as_ptr().cast::<sdl2_sys::SDL_Vertex>(),
-            vertices.len() as i32,
-            indices.map_or(std::ptr::null(), <[_]>::as_ptr),
-            indices.map_or(0, <[_]>::len) as i32,
-        )
-    };
-}
-
-pub trait Drawable: private::Sealed {
-    #[doc(hidden)]
+pub trait Drawable {
     fn draw(&self, canvas: &mut Canvas, transform: Transform);
-}
-
-mod private {
-    use super::*;
-
-    pub trait Sealed {}
-
-    impl Sealed for Texture {}
-    impl Sealed for TextureSlice {}
 }

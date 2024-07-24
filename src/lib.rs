@@ -9,7 +9,6 @@
     clippy::cast_possible_truncation,
     clippy::cast_precision_loss,
     clippy::module_name_repetitions,
-    clippy::unnecessary_wraps,
     clippy::needless_pass_by_value,
     clippy::semicolon_if_nothing_returned,
     clippy::wildcard_imports,
@@ -17,34 +16,34 @@
     clippy::missing_panics_doc
 )]
 
-use thiserror::Error;
-
+mod error;
 mod game;
 pub mod gfx;
 pub mod input;
 pub mod math;
-pub use game::{game, run, Game};
+pub use error::{Error, SdlError};
+pub use game::Game;
 #[doc(inline)]
 pub use prelude::*;
 
-#[derive(Debug, Error)]
-#[error("SDL error: {0}")]
-pub struct SdlError(pub(crate) String);
+pub type Result<T = (), E = Error> = std::result::Result<T, E>;
 
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error(transparent)]
-    Sdl(#[from] SdlError),
-    #[error(transparent)]
-    TextureLoad(#[from] gfx::TextureLoadError),
+pub fn game<S>(name: impl Into<String>, update: impl Fn(&mut S)) -> Game<S, impl Fn(&mut S)> {
+    Game::new(name.into(), update)
 }
 
-pub type Result<T = (), E = Error> = std::result::Result<T, E>;
+pub fn run<S>(name: impl Into<String>, update: impl Fn(&mut S)) -> Result
+where
+    S: Default,
+{
+    game(name, update).run()
+}
 
 pub mod prelude {
     pub use crate::game::{Framerate, Settings, WindowSettings};
     pub use crate::gfx::{
-        self, Color, Origin, ScaleMode, Texture, TextureOptions, TextureSlice, Transform, Vertex,
+        self, Color, Drawable, Origin, ScaleMode, Texture, TextureOptions, TextureSlice, Transform,
+        Vertex,
     };
     pub use crate::input::{self, is_key_down, is_key_pressed, KeyCode};
     pub use crate::math::{
