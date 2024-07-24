@@ -5,7 +5,7 @@ use std::ptr::NonNull;
 use sdl2::VideoSubsystem;
 use sdl2_sys::{
     SDL_CreateRenderer, SDL_CreateWindow, SDL_EventType, SDL_GetRendererInfo,
-    SDL_GetWindowDisplayMode, SDL_GetWindowSize, SDL_PollEvent, SDL_RenderClear,
+    SDL_GetWindowDisplayMode, SDL_PollEvent, SDL_RenderClear,
     SDL_RenderGeometry, SDL_RenderPresent, SDL_RenderSetVSync, SDL_Renderer,
     SDL_SetRenderDrawColor, SDL_SetWindowSize, SDL_SetWindowTitle, SDL_ShowWindow, SDL_Window,
     SDL_WINDOWPOS_UNDEFINED_MASK,
