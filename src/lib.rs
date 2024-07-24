@@ -9,7 +9,6 @@
     clippy::cast_possible_truncation,
     clippy::cast_precision_loss,
     clippy::module_name_repetitions,
-    clippy::needless_pass_by_value,
     clippy::semicolon_if_nothing_returned,
     clippy::wildcard_imports,
     clippy::missing_errors_doc,
@@ -43,7 +42,7 @@ pub mod prelude {
     pub use crate::game::{Framerate, Settings, WindowSettings};
     pub use crate::gfx::{
         self, Color, Drawable, Origin, ScaleMode, Texture, TextureOptions, TextureSlice, Transform,
-        Vertex,
+        Vertex, Viewport, ViewportScaling,
     };
     pub use crate::input::{self, is_key_down, is_key_pressed, KeyCode};
     pub use crate::math::{

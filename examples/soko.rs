@@ -2,7 +2,7 @@ use baba::prelude::*;
 
 fn main() -> baba::Result {
     baba::game("SOKOBAN", Soko::update)
-        .window_size(800, 600)
+        .viewport(Viewport::new(32 * 7, 32 * 7))
         .run_with(Soko::new)
 }
 

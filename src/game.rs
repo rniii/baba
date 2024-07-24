@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
-use crate::{gfx, input, Result, ScaleMode};
+use crate::{gfx, input, Result, ScaleMode, Viewport};
 
 pub struct Game<State, Update> {
     name: String,
@@ -15,7 +15,7 @@ pub struct Game<State, Update> {
 impl<State, Update: Fn(&mut State)> Game<State, Update> {
     pub fn new(name: String, update: Update) -> Self {
         Self {
-            name: name.clone(),
+            name,
             update,
             settings: Settings::default(),
             window: WindowSettings::default(),
@@ -38,6 +38,12 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
     #[must_use]
     pub fn framerate(mut self, framerate: Framerate) -> Self {
         self.settings.framerate = framerate;
+        self
+    }
+
+    #[must_use]
+    pub fn viewport(mut self, viewport: Viewport) -> Self {
+        self.settings.viewport = Some(viewport);
         self
     }
 
@@ -131,8 +137,13 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
         let mut canvas = gfx::Canvas::new(&sdl.video().unwrap(), flags)?;
         canvas.set_window_title(self.window.title.as_ref().unwrap_or(&self.name));
         canvas.set_window_size(self.window.size.0, self.window.size.1);
-        if self.settings.vsync {
-            canvas.set_vsync(true);
+
+        if let Some(viewport) = &self.settings.viewport {
+            canvas.set_viewport(viewport);
+        }
+
+        if self.settings.vsync && !canvas.set_vsync(true) {
+            log::warn!("Failed to set vsync!")
         }
 
         let mode = canvas.get_display_mode();
@@ -160,6 +171,9 @@ pub struct Settings {
     /// Enable vertical sync (default off). Reduces tearing at the cost of some latency. You likely
     /// also want to set [framerate][Settings::framerate] if you use this.
     pub vsync: bool,
+    /// Viewport. If this is set, it will map coordinates to fit it's size, instead of following
+    /// window coordinates.
+    pub viewport: Option<Viewport>,
 }
 
 impl Default for Settings {
@@ -168,6 +182,8 @@ impl Default for Settings {
             scale_mode: ScaleMode::Nearest,
             framerate: Framerate::Multiplier(1.),
             vsync: false,
+            // XXX: could have default?
+            viewport: None,
         }
     }
 }

@@ -5,14 +5,46 @@ use std::ptr::NonNull;
 use sdl2::VideoSubsystem;
 use sdl2_sys::{
     SDL_CreateRenderer, SDL_CreateWindow, SDL_EventType, SDL_GetRendererInfo,
-    SDL_GetWindowDisplayMode, SDL_PollEvent, SDL_RenderClear,
-    SDL_RenderGeometry, SDL_RenderPresent, SDL_RenderSetVSync, SDL_Renderer,
-    SDL_SetRenderDrawColor, SDL_SetWindowSize, SDL_SetWindowTitle, SDL_ShowWindow, SDL_Window,
-    SDL_WINDOWPOS_UNDEFINED_MASK,
+    SDL_GetWindowDisplayMode, SDL_PollEvent, SDL_RenderClear, SDL_RenderGeometry,
+    SDL_RenderPresent, SDL_RenderSetIntegerScale, SDL_RenderSetLogicalSize, SDL_RenderSetVSync,
+    SDL_Renderer, SDL_SetRenderDrawColor, SDL_SetWindowMinimumSize, SDL_SetWindowSize,
+    SDL_SetWindowTitle, SDL_ShowWindow, SDL_Window, SDL_bool, SDL_WINDOWPOS_UNDEFINED_MASK,
 };
 use thiserror::Error;
 
 use crate::{input, Drawable, SdlError, Texture, Transform, Vertex};
+
+#[must_use]
+#[derive(Debug, Clone)]
+pub struct Viewport {
+    pub logical_size: (u32, u32),
+    pub scaling: ViewportScaling,
+}
+
+impl Viewport {
+    pub const fn new(width: u32, height: u32) -> Self {
+        Self {
+            logical_size: (width, height),
+            scaling: ViewportScaling::Integer,
+        }
+    }
+
+    pub const fn fractional(mut self) -> Self {
+        self.scaling = ViewportScaling::Fractional;
+        self
+    }
+
+    pub const fn integer(mut self) -> Self {
+        self.scaling = ViewportScaling::Integer;
+        self
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ViewportScaling {
+    Integer,
+    Fractional,
+}
 
 #[derive(Debug, Error)]
 pub enum CanvasError {
@@ -113,11 +145,24 @@ impl Canvas {
     }
 
     pub fn set_vsync(&mut self, vsync: bool) -> bool {
-        let ok = unsafe { SDL_RenderSetVSync(self.renderer.as_ptr(), i32::from(vsync)) } == 0;
-        if ok {
-            log::warn!("Failed to enable vsync!");
-        }
-        ok
+        unsafe { SDL_RenderSetVSync(self.renderer.as_ptr(), i32::from(vsync)) == 0 }
+    }
+
+    pub fn set_logical_size(&mut self, width: u32, height: u32) {
+        let _ = unsafe {
+            SDL_RenderSetLogicalSize(self.renderer.as_ptr(), width as i32, height as i32)
+        };
+        unsafe { SDL_SetWindowMinimumSize(self.window.as_ptr(), width as i32, height as i32) };
+    }
+
+    pub fn set_integer_scaling(&mut self, enable: bool) {
+        let enable = unsafe { std::mem::transmute::<i32, SDL_bool>(i32::from(enable)) };
+        let _ = unsafe { SDL_RenderSetIntegerScale(self.renderer.as_ptr(), enable) == 0 };
+    }
+
+    pub fn set_viewport(&mut self, viewport: &Viewport) {
+        self.set_logical_size(viewport.logical_size.0, viewport.logical_size.1);
+        self.set_integer_scaling(matches!(viewport.scaling, ViewportScaling::Integer));
     }
 
     pub fn show_window(&self) {

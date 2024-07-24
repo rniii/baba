@@ -8,7 +8,7 @@ use glam::Vec2;
 mod canvas;
 mod texture;
 mod transform;
-pub use canvas::{Canvas, DisplayMode, CanvasError};
+pub use canvas::{Canvas, CanvasError, DisplayMode, Viewport, ViewportScaling};
 pub use texture::{
     LoadError as TextureLoadError, Options as TextureOptions, Origin, ScaleMode, Texture,
     TextureSlice,

@@ -39,17 +39,19 @@ impl State {
         if is_key_down(KeyCode::S) {
             self.position.y += 1.;
         }
+
         if is_key_down(KeyCode::Q) {
             self.angle = (self.angle - 0.04) % TAU;
         }
         if is_key_down(KeyCode::E) {
             self.angle = (self.angle + 0.04) % TAU;
         }
+
         if is_key_down(KeyCode::J) {
-            self.scale += 0.01;
+            self.scale /= 1.005;
         }
         if is_key_down(KeyCode::K) {
-            self.scale -= 0.01;
+            self.scale *= 1.005;
         }
 
         gfx::draw(&self.creature, (self.position, self.scale, self.angle));

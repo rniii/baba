@@ -3,7 +3,7 @@ use std::ops::Mul;
 use crate::math::{Affine2, Mat2, Mat3, Vec2};
 
 #[must_use]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct Transform(Affine2);
 
 /// Two-dimensional coordinate transformation.
@@ -87,6 +87,13 @@ impl From<Mat2> for Transform {
     #[inline]
     fn from(value: Mat2) -> Self {
         Self(Affine2::from_mat2(value))
+    }
+}
+
+impl From<()> for Transform {
+    #[inline]
+    fn from((): ()) -> Self {
+        Self::IDENTITY
     }
 }
 

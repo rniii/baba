@@ -82,7 +82,7 @@ impl TextureData {
         }
     }
 
-    fn from_image(img: image::DynamicImage, opts: Options) -> Result<Self, LoadError> {
+    fn from_image(img: image::DynamicImage, opts: &Options) -> Result<Self, LoadError> {
         let w = img.width();
         let h = img.height();
         let (format, mut data) = if img.color().has_alpha() {
@@ -167,7 +167,7 @@ impl Texture {
     ) -> Result<Self, LoadError> {
         let options = options.into();
         let origin = options.origin.0;
-        let data = Rc::new(TextureData::from_image(img, options)?);
+        let data = Rc::new(TextureData::from_image(img, &options)?);
         Ok(Self { data, origin })
     }
 
