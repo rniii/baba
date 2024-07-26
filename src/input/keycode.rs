@@ -1,5 +1,11 @@
 // Derived from SDL2/SDL_scancode.h
 
+#![allow(missing_docs)] // not looking forward to this
+
+/// A physical key on the keyboard.
+///
+/// This is different from the actual key, so that, for example, on an AZERTY layout `KeyCode::W`
+/// refers to the `Z` key, and you don't have to compensate for it.
 #[repr(u32)]
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, bytemuck::CheckedBitPattern)]

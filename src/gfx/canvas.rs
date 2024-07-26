@@ -12,16 +12,21 @@ use sdl2_sys::{
 };
 use thiserror::Error;
 
-use crate::{input, Drawable, SdlError, Texture, Transform, Vertex};
+use crate::gfx::{Drawable, Texture, Transform, Vertex};
+use crate::{input, SdlError};
 
+/// Defines how coordinates are translated.
 #[must_use]
 #[derive(Debug, Clone)]
 pub struct Viewport {
+    /// Maximum X and Y.
     pub logical_size: (u32, u32),
+    /// How should coordinates be divided.
     pub scaling: ViewportScaling,
 }
 
 impl Viewport {
+    /// Shorthand for `logical_size` and integer scaling.
     pub const fn new(width: u32, height: u32) -> Self {
         Self {
             logical_size: (width, height),
@@ -29,29 +34,37 @@ impl Viewport {
         }
     }
 
+    /// Disables integer scaling.
     pub const fn fractional(mut self) -> Self {
         self.scaling = ViewportScaling::Fractional;
         self
     }
 
+    /// Enables integer scaling.
     pub const fn integer(mut self) -> Self {
         self.scaling = ViewportScaling::Integer;
         self
     }
 }
 
+/// Toggles integer scaling for the viewport.
 #[derive(Debug, Clone)]
 pub enum ViewportScaling {
+    /// Integer scaling. Coordinates will always use the smallest multiple of window coordinates.
     Integer,
+    /// No integer scaling.
     Fractional,
 }
 
+/// Canvas creation error.
 #[derive(Debug, Error)]
 pub enum CanvasError {
+    /// Backend error, this system might not be supported.
     #[error(transparent)]
     Sdl(#[from] SdlError),
 }
 
+/// An object responsible for rendering stuff onto a window.
 #[derive(Clone)]
 pub struct Canvas {
     window: NonNull<SDL_Window>,
@@ -82,13 +95,12 @@ impl Canvas {
 
     #[allow(clippy::unused_self)]
     pub(crate) fn process_events(&self) -> bool {
-        unsafe {
-            loop {
-                let mut event = MaybeUninit::uninit();
-                if SDL_PollEvent(event.as_mut_ptr()) == 0 {
-                    return true;
-                }
-                let event = event.assume_init();
+        let mut event = MaybeUninit::uninit();
+
+        while unsafe { SDL_PollEvent(event.as_mut_ptr()) } == 1 {
+            let event = unsafe { event.assume_init() };
+
+            unsafe {
                 match std::mem::transmute::<u32, SDL_EventType>(event.type_) {
                     SDL_EventType::SDL_QUIT => return false,
                     SDL_EventType::SDL_KEYDOWN if event.key.repeat == 0 => {
@@ -103,8 +115,11 @@ impl Canvas {
                 }
             }
         }
+
+        true
     }
 
+    /// Queries some information about the window.
     #[must_use]
     #[allow(clippy::cast_sign_loss)]
     pub fn get_display_mode(&self) -> DisplayMode {
@@ -136,39 +151,44 @@ impl Canvas {
         }
     }
 
+    /// Sets the window title.
     pub fn set_window_title(&mut self, title: &str) {
         unsafe { SDL_SetWindowTitle(self.window.as_ptr(), title.as_ptr().cast()) };
     }
 
+    /// Sets the window size.
     pub fn set_window_size(&mut self, width: u32, height: u32) {
         unsafe { SDL_SetWindowSize(self.window.as_ptr(), width as i32, height as i32) };
     }
 
+    /// Toggles vertical sync.
     pub fn set_vsync(&mut self, vsync: bool) -> bool {
         unsafe { SDL_RenderSetVSync(self.renderer.as_ptr(), i32::from(vsync)) == 0 }
     }
 
-    pub fn set_logical_size(&mut self, width: u32, height: u32) {
+    fn set_logical_size(&mut self, width: u32, height: u32) {
         let _ = unsafe {
             SDL_RenderSetLogicalSize(self.renderer.as_ptr(), width as i32, height as i32)
         };
         unsafe { SDL_SetWindowMinimumSize(self.window.as_ptr(), width as i32, height as i32) };
     }
 
-    pub fn set_integer_scaling(&mut self, enable: bool) {
+    fn set_integer_scaling(&mut self, enable: bool) {
         let enable = unsafe { std::mem::transmute::<i32, SDL_bool>(i32::from(enable)) };
         let _ = unsafe { SDL_RenderSetIntegerScale(self.renderer.as_ptr(), enable) == 0 };
     }
 
+    /// Sets the viewport for this canvas, changing how coordinates are used.
     pub fn set_viewport(&mut self, viewport: &Viewport) {
         self.set_logical_size(viewport.logical_size.0, viewport.logical_size.1);
         self.set_integer_scaling(matches!(viewport.scaling, ViewportScaling::Integer));
     }
 
-    pub fn show_window(&self) {
+    pub(crate) fn show_window(&self) {
         unsafe { SDL_ShowWindow(self.window.as_ptr()) };
     }
 
+    /// Clears the screen.
     pub fn clear(&mut self, color: super::Color) {
         let (r, g, b, a) = color.to_tuple();
         let renderer = self.renderer.as_ptr();
@@ -176,14 +196,17 @@ impl Canvas {
         let _ = unsafe { SDL_RenderClear(renderer) };
     }
 
+    /// Displays the current frame.
     pub fn display(&mut self) {
         unsafe { SDL_RenderPresent(self.renderer.as_ptr()) };
     }
 
+    /// Draws an object
     pub fn draw<T: Drawable>(&mut self, object: &T, transform: impl Into<Transform>) {
         object.draw(self, transform.into());
     }
 
+    /// Draws vertices on the screen.
     pub fn draw_geometry(
         &mut self,
         texture: &Texture,
@@ -204,10 +227,15 @@ impl Canvas {
     }
 }
 
+/// Some information about the canvas' output
 #[derive(Default)]
 pub struct DisplayMode {
+    /// Window width.
     pub width: u32,
+    /// Window height.
     pub height: u32,
+    /// Refresh rate.
     pub refresh: u32,
+    /// Name of the renderer being used.
     pub renderer: &'static str,
 }

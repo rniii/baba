@@ -2,12 +2,13 @@ use std::ops::Mul;
 
 use crate::math::{Affine2, Mat2, Mat3, Vec2};
 
+/// Two-dimensional coordinate transformation.
 #[must_use]
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Transform(Affine2);
 
-/// Two-dimensional coordinate transformation.
 impl Transform {
+    /// The identity transform. Essentially, it does nothing.
     pub const IDENTITY: Self = Self::from_affine(Affine2::IDENTITY);
 
     /// Create a transform from an affine transformation matrix.
@@ -52,6 +53,7 @@ impl Transform {
         self * Self::from_rotation(angle)
     }
 
+    /// Get the affine transformation matrix for this transform.
     #[must_use]
     pub const fn to_affine(self) -> Affine2 {
         self.0

@@ -4,6 +4,7 @@ use thiserror::Error;
 
 use crate::gfx;
 
+/// Internal SDL error. This usually means something in backend went wrong.
 #[derive(Debug, Error)]
 #[error("SDL error: {0}")]
 pub struct SdlError(String);
@@ -17,10 +18,14 @@ impl SdlError {
     }
 }
 
+/// Common errors from the library.
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("Failed to initialise canvas")]
+    /// Failed to initialise a window and renderer for the canvas. This system might not be
+    /// supported.
+    #[error("Failed to initialise canvas: {0}")]
     Canvas(#[from] gfx::CanvasError),
-    #[error("Failed to load texture")]
+    /// Failed to load a texture. It could be missing, corrupted, or have an unsupported format.
+    #[error("Failed to load texture: {0}")]
     TextureLoad(#[from] gfx::TextureLoadError),
 }

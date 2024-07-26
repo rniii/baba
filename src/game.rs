@@ -1,8 +1,13 @@
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
-use crate::{gfx, input, Result, ScaleMode, Viewport};
+use crate::gfx::{ScaleMode, Viewport};
+use crate::{gfx, input, Result};
 
+/// Tells the engine how to run a game.
+///
+/// This is returned by [`baba::game`][crate::game()] and you can modify settings with the available
+/// methods below.
 pub struct Game<State, Update> {
     name: String,
     update: Update,
@@ -13,7 +18,7 @@ pub struct Game<State, Update> {
 
 #[allow(clippy::missing_const_for_fn)] // Game can't be const initialised
 impl<State, Update: Fn(&mut State)> Game<State, Update> {
-    pub fn new(name: String, update: Update) -> Self {
+    pub(crate) fn new(name: String, update: Update) -> Self {
         Self {
             name,
             update,
@@ -23,54 +28,67 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
         }
     }
 
-    #[must_use]
-    pub fn settings(mut self, settings: Settings) -> Self {
-        self.settings = settings;
-        self
-    }
-
-    #[must_use]
-    pub fn vsync(mut self) -> Self {
-        self.settings.vsync = true;
-        self
-    }
-
-    #[must_use]
-    pub fn framerate(mut self, framerate: Framerate) -> Self {
-        self.settings.framerate = framerate;
-        self
-    }
-
-    #[must_use]
-    pub fn viewport(mut self, viewport: Viewport) -> Self {
-        self.settings.viewport = Some(viewport);
-        self
-    }
-
+    /// Sets the default scaling for textures. Defaults to nearest scaling.
     #[must_use]
     pub fn scale_mode(mut self, scale_mode: ScaleMode) -> Self {
         self.settings.scale_mode = scale_mode;
         self
     }
 
+    /// Sets the framerate limit. Defaults to 1x the display refresh rate.
     #[must_use]
-    pub fn window(mut self, settings: WindowSettings) -> Self {
-        self.window = settings;
+    pub fn framerate(mut self, framerate: Framerate) -> Self {
+        self.settings.framerate = framerate;
         self
     }
 
+    /// Enable vsync, reducing tearing at the cost of some latency.
+    #[must_use]
+    pub fn vsync(mut self) -> Self {
+        self.settings.vsync = true;
+        self
+    }
+
+    /// Sets a viewport for the screen.
+    #[must_use]
+    pub fn viewport(mut self, viewport: Viewport) -> Self {
+        self.settings.viewport = Some(viewport);
+        self
+    }
+
+    /// Sets the window title. This defaults to the name given to [`game`][crate::game()] or [`run`][crate::run].
     #[must_use]
     pub fn window_title(mut self, title: impl Into<String>) -> Self {
         self.window.title = Some(title.into());
         self
     }
 
+    /// Sets the window size. Defaults to 800x600.
     #[must_use]
     pub fn window_size(mut self, width: u32, height: u32) -> Self {
         self.window.size = (width, height);
         self
     }
 
+    /// Set the engine settings.
+    ///
+    /// This will override any other methods.
+    #[must_use]
+    pub fn settings(mut self, settings: Settings) -> Self {
+        self.settings = settings;
+        self
+    }
+
+    /// Sets all window settings.
+    ///
+    /// Overrides any other `window_*` methods.
+    #[must_use]
+    pub fn window(mut self, settings: WindowSettings) -> Self {
+        self.window = settings;
+        self
+    }
+
+    /// Runs the game, using [`Default`] for the state.
     pub fn run(self) -> Result
     where
         State: Default,
@@ -78,6 +96,7 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
         self.run_with(State::default)
     }
 
+    /// Runs the game, using a initializer function.
     pub fn run_with(self, init: impl FnOnce() -> State) -> Result {
         env_logger::Builder::from_env(env_logger::Env::new().default_filter_or("info"))
             .format_timestamp_millis()
@@ -102,8 +121,8 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
         while canvas.process_events() {
             (self.update)(&mut state);
 
-            gfx::display();
             input::clear();
+            gfx::display();
 
             let now = Instant::now();
             let dt = now - std::mem::replace(&mut frame_start, now);
@@ -163,7 +182,7 @@ impl<State, Update: Fn(&mut State)> Game<State, Update> {
 
 /// Global engine settings.
 pub struct Settings {
-    /// Texture scaling mode, may be overriden with [`TextureOptions`][crate::TextureOptions].
+    /// Texture scaling mode, may be overriden with [`TextureOptions`][crate::gfx::TextureOptions].
     /// Defaults to [`ScaleMode::Nearest`].
     pub scale_mode: ScaleMode,
     /// Framerate limit for `update` calls. Default 1x the display's refresh rate.
@@ -200,7 +219,7 @@ pub enum Framerate {
 
 /// Window settings.
 pub struct WindowSettings {
-    /// Window title. Defaults to the name given to [`game`] or [`run`].
+    /// Window title. Defaults to the name given to [`game`][crate::game()] or [`run`][crate::run].
     pub title: Option<String>,
     /// Window size. Defaults to 800x600.
     pub size: (u32, u32),
