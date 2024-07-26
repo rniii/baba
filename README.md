@@ -1,5 +1,8 @@
 # baba
 
+[![crates.io](https://img.shields.io/crates/v/baba)](https://crates.io/crates/baba)
+[![docs.rs](https://img.shields.io/docsrs/baba)](https://docs.rs/pomprt)
+
 Extremely simple library for game development, inspired by love2d and raylib.
 
 Its main goal is to provide a robust base for games of any complexity. It is currently built on top of SDL2, which
@@ -17,6 +20,8 @@ impl MyGame {
     }
 }
 ```
+
+Ready? Check some of the [examples](examples/), and check the [documentation!](https://docs.rs/baba)
 
 ## Roadmap?
 
