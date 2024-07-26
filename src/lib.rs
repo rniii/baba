@@ -33,8 +33,6 @@
 //! development, so loads more documentation are still coming.
 //!
 //! [modules]: #modules
-//!
-//! ## Need help?
 
 #![warn(
     clippy::pedantic,
